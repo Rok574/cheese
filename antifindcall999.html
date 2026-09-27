@@ -1530,12 +1530,10 @@
             const ch = fxCanvas.height;
             fxCtx.setTransform(1, 0, 0, 1, 0, 0);
             fxCtx.filter = "none";
-            fxCtx.fillStyle = "#0a0c11";
-            fxCtx.fillRect(0, 0, cw, ch);
             if (camOn) {
             const vw = fxSrc.videoWidth || cw;
             const vh = fxSrc.videoHeight || ch;
-            if (vw >= 160 && vh >= 160 && (Math.abs(vw - cw) > 48 || Math.abs(vh - ch) > 48) && !window.__fxResize) {
+            if (vw >= 160 && vh >= 160 && (vw !== cw || vh !== ch) && !window.__fxResize) {
                 window.__fxResize = true;
                 FX_W = vw;
                 FX_H = vh;
@@ -1571,10 +1569,8 @@
             fxSrc.srcObject = cameraStream;
             try { await fxSrc.play(); } catch (_) {}
             await waitVideoSize(fxSrc);
-            const camTrack = cameraStream.getVideoTracks()[0];
-            const settings = camTrack?.getSettings?.() || {};
-            const wantW = fxSrc.videoWidth || settings.width || 720;
-            const wantH = fxSrc.videoHeight || settings.height || 1280;
+            const wantW = fxSrc.videoWidth || 720;
+            const wantH = fxSrc.videoHeight || 1280;
             if (fxStream && fxStream.getVideoTracks().every(t => t.readyState !== "live")) {
                 fxStream = null;
             }
@@ -1647,6 +1643,8 @@
             camBtn.classList.toggle("on", !camOn);
             camBtn.innerHTML = camOn ? ICO_CAM : ICO_CAM_OFF;
             camBtn.title = camOn ? "Turn camera off" : "Turn camera on";
+            const shareOk = !isIosFamily();
+            shareBtn.style.display = shareOk ? "" : "none";
             shareBtn.classList.toggle("on", sharing);
             shareBtn.innerHTML = sharing ? ICO_SHARE_STOP : ICO_SHARE;
             shareBtn.title = sharing ? "Stop sharing" : "Share screen";
@@ -2108,6 +2106,10 @@
                 await stopShare();
                 return;
             }
+            if (isIosFamily()) {
+                alert("Screen share is only on Mac and other computers.");
+                return;
+            }
             if (!navigator.mediaDevices?.getDisplayMedia) {
                 alert("Screen sharing is not available in this browser. Try Chrome or Edge on desktop.");
                 return;
@@ -2182,6 +2184,9 @@
         function isAppleTouch() {
             return /iP(hone|ad|od)/.test(navigator.userAgent) ||
                 (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+        }
+        function isIosFamily() {
+            return isAppleTouch();
         }
         function stopShareDraw() {
             if (shareRaf) cancelAnimationFrame(shareRaf);
