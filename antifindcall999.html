@@ -1590,7 +1590,7 @@
         }
         function outgoingVideoTrack() {
             if (sharing) return screenStream?.getVideoTracks?.()[0];
-            if (fxMode !== "off" && fxStream?.getVideoTracks?.()[0]?.readyState === "live") {
+            if (fxStream?.getVideoTracks?.()[0]?.readyState === "live") {
                 return fxStream.getVideoTracks()[0];
             }
             return cameraStream?.getVideoTracks?.()[0] || localStream?.getVideoTracks?.()[0];
@@ -1625,10 +1625,9 @@
             try {
                 if (fxMode !== "off") {
                     try { await loadFaceModel(); } catch (err) { log("Face track fallback"); }
-                    resetFxOutput();
+                }
+                if (!fxStream || fxStream.getVideoTracks().every(t => t.readyState !== "live")) {
                     await startFxPipeline();
-                } else {
-                    resetFxOutput();
                 }
                 await pushLocalOutput();
             } catch (err) {
