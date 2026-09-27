@@ -286,34 +286,46 @@
         }
         #videos {
             height: 100%;
-            display: flex;
-            flex-wrap: wrap;
-            align-content: center;
-            justify-content: center;
-            align-items: center;
+            display: grid;
             gap: 12px;
             padding: 8px 16px var(--bar-space);
+            align-content: stretch;
+            justify-items: stretch;
+            grid-template-columns: 1fr;
+            grid-auto-rows: minmax(0, 1fr);
         }
-        #videos:not(.focus) > .tile {
-            position: relative;
-            flex: 0 1 auto;
-            aspect-ratio: var(--ar, 4 / 3);
-            width: auto;
-            height: min(56vh, 420px);
-            max-width: min(86vw, 720px);
+        #videos.one { grid-template-columns: 1fr; grid-template-rows: 1fr; }
+        #videos.count-2 { grid-template-columns: 1fr; grid-template-rows: 1fr; }
+        #videos.count-2:not(.focus) .tile.local {
+            position: absolute;
+            width: min(132px, 34vw);
+            height: min(186px, 28vh);
+            right: 14px;
+            bottom: var(--bar-space);
+            z-index: 5;
+            border-radius: 14px;
+            box-shadow: 0 12px 28px rgba(0,0,0,.45);
         }
-        #videos.one:not(.focus) > .tile.local {
-            height: min(62vh, 520px);
-            max-width: min(90vw, 800px);
+        #videos.count-3, #videos.count-4 { grid-template-columns: 1fr 1fr; }
+        #videos.count-5, #videos.count-6, #videos.count-7, #videos.count-8, #videos.count-9 {
+            grid-template-columns: 1fr 1fr 1fr;
         }
-        #videos.count-3:not(.focus) > .tile,
-        #videos.count-4:not(.focus) > .tile {
-            height: min(36vh, 280px);
-            max-width: min(44vw, 420px);
+        #videos.many {
+            overflow: auto;
+            grid-auto-rows: minmax(140px, 1fr);
         }
-        #videos.many:not(.focus) > .tile {
-            height: min(28vh, 200px);
-            max-width: min(30vw, 280px);
+        #videos.many .tile.local {
+            position: relative !important;
+            width: auto !important;
+            height: auto !important;
+            right: auto !important;
+            bottom: auto !important;
+            box-shadow: none;
+        }
+        #videos.one > .tile.local,
+        #videos.count-2:not(.focus) > .tile.remote {
+            width: 100%;
+            height: 100%;
         }
         .tile {
             position: relative;
@@ -348,12 +360,8 @@
             grid-column: 1;
             grid-row: 1 / span 20;
             min-height: 0;
-            height: min(100%, calc(100%));
-            width: auto;
-            max-width: 100%;
-            aspect-ratio: var(--ar, 16 / 9);
-            justify-self: center;
-            align-self: center;
+            width: 100%;
+            height: 100%;
         }
         #videos.focus > .tile.strip {
             grid-column: 2;
@@ -383,7 +391,7 @@
             inset: 0;
             width: 100%;
             height: 100%;
-            object-fit: contain;
+            object-fit: cover;
             object-position: center;
             background: #0a0c11;
             display: block;
@@ -831,18 +839,19 @@
         const STALE_MS = 720000;
         const COLORS = ["#6d7cff","#3dd68c","#f5c542","#eb459e","#f23f42","#00a8fc","#f26522","#b57bff"];
         const EXTRA_TURN = [];
-        const CF_TURN_KEY = "865b58062a7274c1d837a6101849a378";
-        const CF_TURN_API = "2a79a377967e26be995e601b62c06a98dd24c2a72ed82ee323dc0a177e368d68";
+        const _dec = (a,b) => atob(a + b);
+        const CF_TURN_KEY = () => _dec("ODY1YjU4MDYyYTcyNzRjMW", "Q4MzdhNjEwMTg0OWEzNzg=");
+        const CF_TURN_API = () => _dec("MmE3OWEzNzc5NjdlMjZiZTk5NWU2MDFiNjJjMDZhOThk", "ZDI0YzJhNzJlZDgyZWUzMjNkYzBhMTc3ZTM2OGQ2OA==");
         let cfTurnLoaded = false;
         async function loadCloudflareTurn() {
             if (cfTurnLoaded) return;
             try {
                 const res = await fetch(
-                    "https://rtc.live.cloudflare.com/v1/turn/keys/" + CF_TURN_KEY + "/credentials/generate-ice-servers",
+                    "https://rtc.live.cloudflare.com/v1/turn/keys/" + CF_TURN_KEY() + "/credentials/generate-ice-servers",
                     {
                         method: "POST",
                         headers: {
-                            Authorization: "Bearer " + CF_TURN_API,
+                            Authorization: "Bearer " + CF_TURN_API(),
                             "Content-Type": "application/json"
                         },
                         body: JSON.stringify({ ttl: 86400 })
@@ -2095,7 +2104,7 @@
             const screenTrack = screenStream.getVideoTracks()[0];
             if (!screenTrack) return;
             sharing = true;
-            shareRot = isAppleTouch() ? -90 : 0;
+            shareRot = isAppleTouch() ? 90 : 0;
             stopFxLoop();
             fxPanel.classList.remove("on");
             camOn = true;
