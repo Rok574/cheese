@@ -2076,8 +2076,7 @@
                 facing = settings.facingMode || nextFacing;
                 if (old && old !== next) old.getVideoTracks().forEach(t => t.stop());
                 resetFxOutput();
-                if (fxMode !== "off") await startFxPipeline();
-                else fxSrc.srcObject = cameraStream;
+                await startFxPipeline();
                 await pushLocalOutput();
                 localVideo.style.width = "";
                 localVideo.style.height = "";
