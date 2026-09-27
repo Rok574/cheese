@@ -299,15 +299,16 @@
             display: flex;
         }
         #videos:not(.focus) > .tile {
+            flex: 0 0 auto;
             aspect-ratio: var(--ar, 3 / 4);
-            width: min(92vw, calc((100dvh - var(--bar-space) - 72px) * 0.75));
-            height: auto;
-            max-height: calc(100dvh - var(--bar-space) - 72px);
+            height: min(72vh, calc(100dvh - var(--bar-space) - 80px));
+            width: auto;
+            max-width: min(92vw, 100%);
         }
         #videos.one > .tile.local {
-            width: min(92vw, calc((100dvh - var(--bar-space) - 72px) * 0.75));
-            height: auto;
-            max-height: calc(100dvh - var(--bar-space) - 72px);
+            height: min(78vh, calc(100dvh - var(--bar-space) - 80px));
+            width: auto;
+            max-width: min(92vw, 100%);
         }
         #videos.count-2:not(.focus) .tile.local {
             position: absolute;
@@ -337,8 +338,10 @@
             bottom: auto !important;
             box-shadow: none;
         }
-        #videos.one > .tile.local {
-            height: min(78vh, 100%);
+        #videos.count-2:not(.focus) > .tile.remote {
+            height: min(72vh, calc(100dvh - var(--bar-space) - 80px));
+            width: auto;
+            max-width: min(70vw, 100%);
         }
         .tile {
             position: relative;
@@ -352,56 +355,44 @@
         }
         .tile.focused { cursor: zoom-out; border-color: rgba(109,124,255,.45); }
         #videos.focus {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) 128px;
-            grid-template-rows: 1fr;
-            grid-auto-rows: 86px;
-            align-content: start;
-            justify-items: stretch;
-            gap: 8px;
+            display: flex;
+            flex-direction: row;
+            flex-wrap: nowrap;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
             padding: 8px 16px var(--bar-space);
         }
         #videos.focus > .tile {
             position: relative !important;
-            width: auto !important;
-            height: auto !important;
             right: auto !important;
             bottom: auto !important;
             display: block;
         }
         #videos.focus > .tile.focused {
-            grid-column: 1;
-            grid-row: 1 / span 20;
-            min-height: 0;
             width: auto;
-            height: auto;
-            max-width: 100%;
-            max-height: 100%;
-            aspect-ratio: var(--ar, 16 / 9);
-            justify-self: center;
-            align-self: center;
+            height: calc(100dvh - var(--bar-space) - 72px);
+            max-width: calc(100vw - 160px);
+            aspect-ratio: var(--ar, 3 / 4);
         }
         #videos.focus > .tile.strip {
-            grid-column: 2;
-            width: 100%;
+            width: 96px;
             height: auto;
-            aspect-ratio: var(--ar, 4 / 3);
-            max-height: 110px;
+            max-height: 28vh;
+            aspect-ratio: var(--ar, 3 / 4);
+            align-self: flex-end;
         }
         @media (orientation: portrait) and (max-width: 759px) {
-            #videos.focus {
-                grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
-                grid-template-rows: minmax(0, 1fr) 92px;
-                grid-auto-rows: 92px;
-            }
+            #videos.focus { flex-direction: column; }
             #videos.focus > .tile.focused {
-                grid-column: 1 / -1;
-                grid-row: 1;
+                width: min(92vw, 100%);
+                height: auto;
+                max-height: calc(100dvh - var(--bar-space) - 160px);
+                max-width: 92vw;
             }
             #videos.focus > .tile.strip {
-                grid-column: auto;
-                grid-row: 2;
-                height: 92px;
+                width: 72px;
+                max-height: 18vh;
             }
         }
         video {
@@ -1170,8 +1161,14 @@
             else if (n <= 4) cols = 2;
             else if (n <= 9) cols = 3;
             else cols = 4;
-            if (!keepFocus) videosEl.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
-            else videosEl.style.gridTemplateColumns = "1fr";
+            if (n <= 2 && !keepFocus) {
+                videosEl.style.gridTemplateColumns = "";
+                videosEl.style.gridTemplateRows = "";
+            } else if (!keepFocus) {
+                videosEl.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+            } else {
+                videosEl.style.gridTemplateColumns = "";
+            }
             if (keepFocus && focusedTileId && document.getElementById(focusedTileId)) {
                 videosEl.classList.add("focus");
             } else if (n <= 1) {
