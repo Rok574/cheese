@@ -626,8 +626,10 @@
             position: fixed;
             left: -4000px;
             top: 0;
-            width: 360px;
-            height: 480px;
+            width: auto !important;
+            height: auto !important;
+            max-width: none !important;
+            max-height: none !important;
             opacity: 0;
             pointer-events: none;
             z-index: -1;
@@ -1569,17 +1571,19 @@
             fxSrc.srcObject = cameraStream;
             try { await fxSrc.play(); } catch (_) {}
             await waitVideoSize(fxSrc);
-            const settings = cameraStream.getVideoTracks()[0]?.getSettings?.() || {};
+            const camTrack = cameraStream.getVideoTracks()[0];
+            const settings = camTrack?.getSettings?.() || {};
+            const wantW = fxSrc.videoWidth || settings.width || 720;
+            const wantH = fxSrc.videoHeight || settings.height || 1280;
             if (fxStream && fxStream.getVideoTracks().every(t => t.readyState !== "live")) {
                 fxStream = null;
             }
-            if (!fxStream) {
-                FX_W = fxSrc.videoWidth || settings.width || 720;
-                FX_H = fxSrc.videoHeight || settings.height || 1280;
+            if (!fxStream || FX_W !== wantW || FX_H !== wantH) {
+                try { fxStream?.getTracks().forEach(t => t.stop()); } catch (_) {}
+                FX_W = wantW;
+                FX_H = wantH;
                 fxCanvas.width = FX_W;
                 fxCanvas.height = FX_H;
-                fxCanvas.style.width = FX_W + "px";
-                fxCanvas.style.height = FX_H + "px";
                 drawCover(fxCtx, fxSrc, FX_W, FX_H);
                 fxStream = fxCanvas.captureStream(30);
             }
@@ -2543,27 +2547,67 @@
         }
         async function reconnectAfterNetwork() {
             if (!roomId || !myId) return;
-            callGen += 1;
-            log("Network changed — rebuilding");
-            await publishState();
-            const ids = [...peers.keys()];
-            for (const id of ids) {
-                try { await rebuildPeer(id, {}, false); } catch (_) {}
+            if (window.__reNetLock) return;
+            window.__reNetLock = true;
+            netDown = false;
+            log("Network changed — same room");
+            try {
+                try { await loadCloudflareTurn(); } catch (_) {}
+                try {
+                    if (!cameraStream || cameraStream.getTracks().every(t => t.readyState !== "live")) {
+                        cameraStream = await getMedia(facing);
+                        localStream = cameraStream;
+                        await attachLocal(localStream);
+                    }
+                } catch (_) {}
+                try {
+                    await onDisconnect(ref(db, `rooms/${roomId}/participants/${myId}`)).remove();
+                    await onDisconnect(ref(db, `rooms/${roomId}/previews/${myId}`)).remove();
+                } catch (_) {}
+                await publishState();
+                const ids = [...peers.keys()];
+                for (const id of ids) {
+                    const entry = peers.get(id);
+                    if (!entry?.pc) continue;
+                    try { await restartIceForPeer(id, entry); } catch (_) {}
+                }
+                await new Promise(r => setTimeout(r, 2800));
+                for (const id of [...peers.keys()]) {
+                    const pc = peers.get(id)?.pc;
+                    if (!pc) continue;
+                    const ok = pc.connectionState === "connected" ||
+                        pc.iceConnectionState === "connected" ||
+                        pc.iceConnectionState === "completed";
+                    if (ok) continue;
+                    try { await rebuildPeer(id, lastPeerInfo.get(id) || {}, true); } catch (_) {}
+                }
+                await publishState();
+            } finally {
+                window.__reNetLock = false;
+                updateSignalBars();
             }
         }
         window.addEventListener("offline", () => { netDown = true; });
         window.addEventListener("online", () => {
             if (!roomId) return;
             netDown = false;
-            reconnectAfterNetwork();
+            clearTimeout(window.__netT);
+            window.__netT = setTimeout(reconnectAfterNetwork, 1600);
         });
         if (navigator.connection) {
             navigator.connection.addEventListener("change", () => {
                 if (!roomId) return;
                 clearTimeout(window.__netT);
-                window.__netT = setTimeout(reconnectAfterNetwork, 400);
+                window.__netT = setTimeout(reconnectAfterNetwork, 1600);
             });
         }
+        try {
+            onValue(ref(db, ".info/connected"), snap => {
+                if (!snap.val() || !roomId || !myId) return;
+                publishState();
+                if (netDown) reconnectAfterNetwork();
+            });
+        } catch (_) {}
         function signalPath(a, b, leaf, relayOnly = false) {
             const [x, y] = a < b ? [a, b] : [b, a];
             return `rooms/${roomId}/signals/${x}_${y}/${relayOnly ? "relay" : "p2p"}/${leaf}`;
