@@ -1704,36 +1704,33 @@
             clearInterval(previewTimer);
             heartbeatTimer = pruneTimer = reconnectTimer = previewTimer = null;
         }
-        function applyPreview(id, data) {
-            if (!id || id === myId) return;
-            const tile = document.getElementById("tile-" + id);
-            if (!tile || !data?.img || tile.classList.contains("cam-off")) return;
-            let img = tile.querySelector(".tile-snap");
-            if (!img) {
-                img = document.createElement("img");
-                img.className = "tile-snap";
-                img.alt = "";
-                tile.insertBefore(img, tile.firstChild.nextSibling);
-            }
-            img.src = data.img;
-        }
-        async function publishPreviewFrame() {
-            if (!roomId || !myId || sharing || !camOn) {
-                if (roomId && myId && !camOn) {
-                    try { await remove(ref(db, `rooms/${roomId}/previews/${myId}`)); } catch (_) {}
-                }
-                return;
-            }
+        const lastFrameCanvas = document.createElement("canvas");
+        function videoFrameCount(v) {
             try {
-                previewCanvas.width = 160;
-                previewCanvas.height = 90;
-                const ctx = previewCanvas.getContext("2d");
-                const src = (fxCanvas.width > 1 && camOn) ? fxCanvas : (fxSrc.videoWidth ? fxSrc : localVideo);
-                ctx.drawImage(src, 0, 0, 160, 90);
-                const img = previewCanvas.toDataURL("image/jpeg", 0.4);
-                if (img.length > 90000) return;
-                await set(ref(db, `rooms/${roomId}/previews/${myId}`), { img, t: Date.now() });
+                const q = v.getVideoPlaybackQuality?.();
+                if (q && q.totalVideoFrames != null) return q.totalVideoFrames;
             } catch (_) {}
+            return v.currentTime;
+        }
+        function captureLastFrames() {
+            for (const [id, entry] of peers.entries()) {
+                const tile = document.getElementById("tile-" + id);
+                if (!tile || tile.classList.contains("waiting") || tile.classList.contains("cam-off")) continue;
+                const v = tile.querySelector("video");
+                if (!v || v.paused || v.readyState < 2 || v.videoWidth < 8 || v.videoHeight < 8) continue;
+                const fc = videoFrameCount(v);
+                if (fc === entry.snapFrames) continue; // video is frozen, keep the last good frame
+                entry.snapFrames = fc;
+                try {
+                    const w = 320;
+                    const h = Math.max(1, Math.round(w * v.videoHeight / v.videoWidth));
+                    lastFrameCanvas.width = w;
+                    lastFrameCanvas.height = h;
+                    lastFrameCanvas.getContext("2d").drawImage(v, 0, 0, w, h);
+                    const img = tile.querySelector(".tile-snap");
+                    if (img) img.src = lastFrameCanvas.toDataURL("image/jpeg", 0.6);
+                } catch (_) {}
+            }
         }
         async function pruneStaleParticipants() {
             if (!roomId) return;
@@ -1881,7 +1878,8 @@
             el.title = label;
         }
         async function recoverPeers() {
-            if (!roomId || !localStream) return;
+            // Paused while a network rejoin is in progress so the two don't fight.
+            if (!roomId || !localStream || window.__netSettling) return;
             for (const [id, entry] of peers.entries()) {
                 const st = entry.pc?.connectionState;
                 const ice = entry.pc?.iceConnectionState;
@@ -1948,6 +1946,9 @@
             const pc = entry?.pc;
             if (!pc || !roomId) return;
             try { pc.setConfiguration(iceForCall(false, lastPeerInfo.get(remoteId))); } catch (_) {}
+            // Only the offerer can send restart offers on this signaling layout.
+            // The answerer relies on the rebuild fallback instead.
+            if (myId > remoteId) return;
             try { pc.restartIce(); } catch (_) {}
             if (pc.signalingState !== "stable") return;
             try {
@@ -2022,7 +2023,6 @@
                 cameraStream?.getVideoTracks?.().forEach(t => { t.enabled = false; });
                 if (fxStream) fxStream.getVideoTracks().forEach(t => { t.enabled = false; });
                 if (roomId && myId) {
-                    try { remove(ref(db, `rooms/${roomId}/previews/${myId}`)); } catch (_) {}
                 }
                 applyLocalMediaState();
                 return;
@@ -2472,7 +2472,6 @@
             log("In room " + roomId);
             watchChat();
             const meRef = ref(db, `rooms/${roomId}/participants/${myId}`);
-            try { await onDisconnect(ref(db, `rooms/${roomId}/previews/${myId}`)).remove(); } catch (_) {}
             try { await onDisconnect(meRef).remove(); } catch (_) {}
             await publishState();
             try {
@@ -2493,6 +2492,7 @@
             participantsUnsub = onChildAdded(partsRef, async (snap) => {
                 const remoteId = snap.key;
                 if (!remoteId || remoteId === myId) return;
+                if (String(remoteId).startsWith(clientId() + "_")) return;
                 const info = snap.val() || {};
                 document.querySelectorAll(".tile.remote").forEach(t => {
                     const id = t.id.replace(/^tile-/, "");
@@ -2532,12 +2532,8 @@
             updateSignalBars();
             pruneTimer = setInterval(() => { pruneStaleParticipants(); }, 10000);
             reconnectTimer = setInterval(() => { recoverPeers(); }, 4000);
-            previewTimer = setInterval(() => { publishPreviewFrame(); }, 4000);
-            if (previewUnsub) { try { previewUnsub(); } catch (_) {} }
-            previewUnsub = onValue(ref(db, `rooms/${roomId}/previews`), snap => {
-                if (!snap.exists()) return;
-                snap.forEach(child => applyPreview(child.key, child.val() || {}));
-            });
+            previewTimer = setInterval(captureLastFrames, 1000);
+            
         }
         function onVisible() {
             if (document.visibilityState !== "visible") return;
@@ -2550,72 +2546,63 @@
                 recoverPeers();
             }, 800);
         }
+
+        // ---- Network drop / reconnect: rejoin with a fresh id instead of repairing old signaling ----
+        async function waitFirebaseConnected(ms = 10000) {
+            let off = () => {};
+            const ok = await new Promise(resolve => {
+                off = onValue(ref(db, ".info/connected"), s => { if (s.val()) resolve(true); });
+                setTimeout(() => resolve(false), ms);
+            });
+            off();
+            return ok;
+        }
+        function scheduleNetRejoin() {
+            if (!roomId) return;
+            window.__netSettling = true;   // pauses recoverPeers so it doesn't fight the rejoin
+            clearTimeout(window.__netT);
+            window.__netT = setTimeout(reconnectAfterNetwork, 1600);
+        }
         async function reconnectAfterNetwork() {
-            if (!roomId || !myId) return;
-            if (window.__reNetLock) return;
+            if (!roomId || !myId || window.__reNetLock) return;
             window.__reNetLock = true;
+            const id = roomId;
             netDown = false;
-            log("Network changed — same room");
             try {
+                log("Network changed, rejoining");
+                await waitFirebaseConnected();
                 try { await loadCloudflareTurn(); } catch (_) {}
-                try {
-                    if (!cameraStream || cameraStream.getTracks().every(t => t.readyState !== "live")) {
+                if (!cameraStream || cameraStream.getTracks().every(t => t.readyState !== "live")) {
+                    try {
                         cameraStream = await getMedia(facing);
                         localStream = cameraStream;
                         await attachLocal(localStream);
-                    }
-                } catch (_) {}
-                try {
-                    await onDisconnect(ref(db, `rooms/${roomId}/participants/${myId}`)).remove();
-                    await onDisconnect(ref(db, `rooms/${roomId}/previews/${myId}`)).remove();
-                } catch (_) {}
-                await publishState();
-                const ids = [...peers.keys()];
-                for (const id of ids) {
-                    const entry = peers.get(id);
-                    if (!entry?.pc) continue;
-                    try { await restartIceForPeer(id, entry); } catch (_) {}
+                    } catch (_) {}
                 }
-                await new Promise(r => setTimeout(r, 2800));
-                for (const id of [...peers.keys()]) {
-                    const pc = peers.get(id)?.pc;
-                    if (!pc) continue;
-                    const ok = pc.connectionState === "connected" ||
-                        pc.iceConnectionState === "connected" ||
-                        pc.iceConnectionState === "completed";
-                    if (ok) continue;
-                    try { await rebuildPeer(id, lastPeerInfo.get(id) || {}, false); } catch (_) {}
-                }
-                await publishState();
+                await joinRoom(id);   // already calls leaveRoom(false) first, then uses a new myId
             } finally {
                 window.__reNetLock = false;
+                window.__netSettling = false;
                 updateSignalBars();
             }
         }
-        window.addEventListener("offline", () => { netDown = true; });
-        window.addEventListener("online", () => {
-            if (!roomId) return;
-            netDown = false;
-            clearTimeout(window.__netT);
-            window.__netT = setTimeout(reconnectAfterNetwork, 1600);
-        });
+        window.addEventListener("offline", () => { netDown = true; if (roomId) window.__netSettling = true; });
+        window.addEventListener("online", scheduleNetRejoin);
         if (navigator.connection) {
-            navigator.connection.addEventListener("change", () => {
-                if (!roomId) return;
-                clearTimeout(window.__netT);
-                window.__netT = setTimeout(reconnectAfterNetwork, 1600);
-            });
+            navigator.connection.addEventListener("change", scheduleNetRejoin);
         }
         try {
             onValue(ref(db, ".info/connected"), snap => {
                 if (!snap.val() || !roomId || !myId) return;
+                if (netDown) { scheduleNetRejoin(); return; }
+                try { onDisconnect(ref(db, `rooms/${roomId}/participants/${myId}`)).remove(); } catch (_) {}
                 publishState();
-                if (netDown) reconnectAfterNetwork();
             });
         } catch (_) {}
+
         function signalPath(a, b, leaf, relayOnly = false) {
             const [x, y] = a < b ? [a, b] : [b, a];
-            return `rooms/${roomId}/signals/${x}_${y}/${relayOnly ? "relay" : "p2p"}/${leaf}`;
+            return `rooms/${roomId}/signals/${x}_${y}/p2p/${leaf}`;
         }
         function updateRemoteChrome(remoteId, info) {
             const tile = document.getElementById("tile-" + remoteId);
@@ -2805,6 +2792,7 @@
                         const cur = peers.get(remoteId);
                         if (!cur || cur.pc !== pc) return;
                         if (pc.connectionState === "connected" || pc.iceConnectionState === "connected") return;
+                        if (window.__netSettling) return;
                         rebuildPeer(remoteId, info, false);
                     }, delay);
                 }
@@ -2944,7 +2932,6 @@
             if (leavingRoomId && leavingUserId) {
                 try {
                     await remove(ref(db, `rooms/${leavingRoomId}/participants/${leavingUserId}`));
-                    await remove(ref(db, `rooms/${leavingRoomId}/previews/${leavingUserId}`));
                     await deleteRoomIfEmpty(leavingRoomId);
                 } catch (_) {}
             }
@@ -2953,6 +2940,7 @@
             if (showLobby) {
                 setInCall(false);
                 roomChip.classList.remove("on");
+                window.__netSettling = false;
                 await stopShare();
                 fxPanel.classList.remove("on");
                 stopAllMedia();
