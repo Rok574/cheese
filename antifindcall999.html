@@ -1112,6 +1112,13 @@
             try { await el.play(); } catch (_) {}
             applyStreamRatio(el);
         }
+        // Keep tile aspect ratio in sync whenever a video's real size changes (flip, cam on/off,
+        // raw-track swaps). Media events don't bubble, so listen in the capture phase.
+        ["loadedmetadata", "resize", "playing"].forEach(evt => {
+            document.addEventListener(evt, (e) => {
+                if (e.target && e.target.tagName === "VIDEO" && e.target.closest("#videos")) applyStreamRatio(e.target);
+            }, true);
+        });
         let focusedTileId = null;
         function applyStripClasses() {
             const on = videosEl.classList.contains("focus") && focusedTileId;
@@ -1227,7 +1234,7 @@
             const cur = localVideo.srcObject;
             const same = cur && stream && cur.getVideoTracks()[0] && stream.getVideoTracks()[0]
                 && cur.getVideoTracks()[0].id === stream.getVideoTracks()[0].id;
-            if (!same) localVideo.srcObject = stream;
+            if (!same) { localVideo.srcObject = stream; await new Promise(r => setTimeout(r, 0)); }
             localVideo.muted = true;
             localVideo.setAttribute("playsinline", "");
             localVideo.setAttribute("webkit-playsinline", "");
@@ -1590,7 +1597,10 @@
         }
         function outgoingVideoTrack() {
             if (sharing) return screenStream?.getVideoTracks?.()[0];
-            if (fxStream?.getVideoTracks?.()[0]?.readyState === "live") {
+            // Canvas output is driven by requestAnimationFrame, which browsers pause in
+            // background tabs (=> frozen video). Use it while visible, raw camera while hidden.
+            if (!document.hidden
+                && fxStream?.getVideoTracks?.()[0]?.readyState === "live") {
                 return fxStream.getVideoTracks()[0];
             }
             return cameraStream?.getVideoTracks?.()[0] || localStream?.getVideoTracks?.()[0];
@@ -1620,13 +1630,13 @@
             fxMode = next;
             fxPanel.querySelectorAll(".fx-item").forEach(b => b.classList.toggle("on", b === btn));
             fxBtn.classList.toggle("on", fxMode !== "off" || fxPanel.classList.contains("on"));
-            if (sharing) return;
+            if (sharing || !camOn) return;
             fxLastLm = null;
             try {
                 if (fxMode !== "off") {
                     try { await loadFaceModel(); } catch (err) { log("Face track fallback"); }
                 }
-                if (!fxStream || fxStream.getVideoTracks().every(t => t.readyState !== "live")) {
+                if (!fxRaf || !fxStream || fxStream.getVideoTracks().every(t => t.readyState !== "live")) {
                     await startFxPipeline();
                 }
                 await pushLocalOutput();
@@ -1683,6 +1693,7 @@
                 await set(ref(db, `rooms/${roomId}/participants/${myId}`), {
                     name: displayName, micOn, camOn, sharing,
                     front: facing !== "environment",
+                    hidden: !!document.hidden,
                     joinedAt: Date.now(),
                     seenAt: Date.now(),
                     gen: callGen
@@ -1920,7 +1931,8 @@
                                 rtt = r.currentRoundTripTime;
                             }
                         });
-                        if (bytes === entry.lastBytes && bytes > 0) entry.stall = (entry.stall || 0) + 1;
+                        const peerHidden = lastPeerInfo.get(id)?.hidden === true;
+                        if (bytes === entry.lastBytes && bytes > 0 && !peerHidden) entry.stall = (entry.stall || 0) + 1;
                         else entry.stall = 0;
                         entry.lastBytes = bytes;
                         if (rtt > 0.45 || packetsLost > (entry.lastLost || 0) + 40) {
@@ -2016,42 +2028,43 @@
         };
         let mediaBusy = false;
         muteBtn.onclick = () => { micOn = !micOn; applyLocalMediaState(); };
+        async function restartCamera() {
+            resetFxOutput();
+            const oldCam = cameraStream;
+            const keepAudio = oldCam?.getAudioTracks?.().find(t => t.readyState === "live") || null;
+            const next = await getMedia(facing, !!keepAudio);
+            if (keepAudio && !next.getAudioTracks().length) next.addTrack(keepAudio);
+            cameraStream = next;
+            if (oldCam && oldCam !== next) {
+                oldCam.getVideoTracks().forEach(t => t.stop());
+                if (!keepAudio) oldCam.getAudioTracks().forEach(t => t.stop());
+            }
+            if (fxMode !== "off") {
+                try { await loadFaceModel(); } catch (_) {}
+            }
+            fxSrc.srcObject = cameraStream;
+            await startFxPipeline();
+            await pushLocalOutput();
+            localVideo.style.width = "";
+            localVideo.style.height = "";
+            await playVideo(localVideo);
+            applyLocalMediaState();
+            layout();
+        }
         camBtn.onclick = async () => {
             if (sharing || mediaBusy) return;
             camOn = !camOn;
             if (!camOn) {
-                cameraStream?.getVideoTracks?.().forEach(t => { t.enabled = false; });
-                if (fxStream) fxStream.getVideoTracks().forEach(t => { t.enabled = false; });
-                if (roomId && myId) {
-                }
+                // Fully release the camera (LED off) instead of just disabling the track.
+                resetFxOutput();
+                cameraStream?.getVideoTracks?.().forEach(t => { try { t.stop(); } catch (_) {} });
                 applyLocalMediaState();
                 return;
             }
             mediaBusy = true;
             try {
-                const live = cameraStream?.getVideoTracks?.().some(t => t.readyState === "live");
-                if (live) {
-                    cameraStream.getVideoTracks().forEach(t => { t.enabled = true; });
-                } else {
-                    resetFxOutput();
-                    const oldCam = cameraStream;
-                    const keepAudio = oldCam?.getAudioTracks?.().find(t => t.readyState === "live");
-                    cameraStream = await getMedia(facing, !!keepAudio);
-                    if (keepAudio && !cameraStream.getAudioTracks().length) cameraStream.addTrack(keepAudio);
-                    if (oldCam && oldCam !== cameraStream) {
-                        oldCam.getVideoTracks().forEach(t => t.stop());
-                        if (!keepAudio) oldCam.getAudioTracks().forEach(t => t.stop());
-                    }
-                }
-                if (fxMode !== "off") {
-                    await startFxPipeline();
-                } else {
-                    fxSrc.srcObject = cameraStream;
-                }
-                await pushLocalOutput();
+                await restartCamera();
                 localTile.classList.remove("cam-off");
-                await playVideo(localVideo);
-                applyLocalMediaState();
             } catch (err) {
                 camOn = false;
                 applyLocalMediaState();
@@ -2536,14 +2549,25 @@
             
         }
         function onVisible() {
-            if (document.visibilityState !== "visible") return;
             if (!roomId || !myId) return;
-            publishState();
+            publishState(); // carries the hidden flag so peers don't mistake a paused tab for a dead link
+            if (document.visibilityState !== "visible") {
+                // Hidden: rAF pauses, so switch effects users to the raw camera track
+                if (!sharing) pushLocalOutput().catch(() => {});
+                return;
+            }
+            if (!sharing && camOn && cameraStream?.getVideoTracks?.().some(t => t.readyState === "live")) startFxPipeline().then(() => pushLocalOutput()).catch(() => {});
             videosEl.querySelectorAll("video").forEach(playVideo);
             recoverPeers();
-            setTimeout(() => {
+            setTimeout(async () => {
                 publishState();
                 recoverPeers();
+                // Some browsers kill/mute the camera in the background; revive it if so
+                const vt = cameraStream?.getVideoTracks?.()[0];
+                if (camOn && !sharing && !mediaBusy && (!vt || vt.readyState !== "live" || vt.muted)) {
+                    mediaBusy = true;
+                    try { await restartCamera(); } catch (_) {} finally { mediaBusy = false; }
+                }
             }, 800);
         }
 
