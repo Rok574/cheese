@@ -852,8 +852,8 @@
         const COLORS = ["#6d7cff","#3dd68c","#f5c542","#eb459e","#f23f42","#00a8fc","#f26522","#b57bff"];
         const EXTRA_TURN = [];
         const _dec = (a,b) => atob(a + b);
-        const CF_TURN_KEY = () => _dec("ODY1YjU4MDYyYTcyNzRjMW", "Q4MzdhNjEwMTg0OWEzNzg=");
-        const CF_TURN_API = () => _dec("MmE3OWEzNzc5NjdlMjZiZTk5NWU2MDFiNjJjMDZhOThk", "ZDI0YzJhNzJlZDgyZWUzMjNkYzBhMTc3ZTM2OGQ2OA==");
+        const CF_TURN_KEY = () => _dec("NzYwZDE0Y2FiYmVhMjk1MD", "c2ZjhhZTkyMzgzZDY3MDE=");
+        const CF_TURN_API = () => _dec("NTQ1NjE0NTIyMDQ0MWM0MGI0ZDMwNGFjZmI1MjQyMTA5", "MDJmZWUyZDFjMWY0NzY3NWZlMjhmMTg5YzYwMGNhOA==");
         let cfTurnLoaded = false;
         async function loadCloudflareTurn() {
             if (cfTurnLoaded) return;
@@ -1947,14 +1947,16 @@
         async function restartIceForPeer(remoteId, entry) {
             const pc = entry?.pc;
             if (!pc || !roomId) return;
+            try { pc.setConfiguration(iceForCall(false, lastPeerInfo.get(remoteId))); } catch (_) {}
             try { pc.restartIce(); } catch (_) {}
-            if (myId < remoteId && pc.signalingState === "stable") {
-                try {
-                    const offer = await pc.createOffer({ iceRestart: true, offerToReceiveAudio: true, offerToReceiveVideo: true });
-                    await pc.setLocalDescription(offer);
-                    await set(ref(db, signalPath(myId, remoteId, "offer", !!entry.relayOnly)), { type: offer.type, sdp: offer.sdp, restart: true, t: Date.now() });
-                } catch (_) {}
-            }
+            if (pc.signalingState !== "stable") return;
+            try {
+                const offer = await pc.createOffer({ iceRestart: true, offerToReceiveAudio: true, offerToReceiveVideo: true });
+                await pc.setLocalDescription(offer);
+                await set(ref(db, signalPath(myId, remoteId, "offer", !!entry.relayOnly)), {
+                    type: offer.type, sdp: offer.sdp, restart: true, t: Date.now()
+                });
+            } catch (_) {}
         }
         async function adaptBitrate(pc, poor) {
             const n = Math.max(1, peers.size);
@@ -2582,7 +2584,7 @@
                         pc.iceConnectionState === "connected" ||
                         pc.iceConnectionState === "completed";
                     if (ok) continue;
-                    try { await rebuildPeer(id, lastPeerInfo.get(id) || {}, true); } catch (_) {}
+                    try { await rebuildPeer(id, lastPeerInfo.get(id) || {}, false); } catch (_) {}
                 }
                 await publishState();
             } finally {
