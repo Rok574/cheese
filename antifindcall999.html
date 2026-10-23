@@ -624,13 +624,11 @@
         .fx-ico { font-size: 22px; display: block; margin-bottom: 4px; }
         #fxSrc, #fxCanvas {
             position: fixed;
-            left: -4000px;
+            left: 0;
             top: 0;
-            width: auto !important;
-            height: auto !important;
-            max-width: none !important;
-            max-height: none !important;
-            opacity: 0;
+            width: 2px !important;
+            height: 2px !important;
+            opacity: .01;
             pointer-events: none;
             z-index: -1;
         }
@@ -832,7 +830,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
         import {
-            getDatabase, ref, set, push, onValue, onChildAdded, onChildRemoved, remove, runTransaction, onDisconnect
+            getDatabase, ref, set, push, onValue, onChildAdded, onChildRemoved, remove, runTransaction, onDisconnect, get, query, limitToLast
         } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
         const firebaseConfig = {
             apiKey: "AIzaSyCjbcnSZc5uEcbEqgn68H-CLx2MoMpuqgA",
@@ -848,14 +846,15 @@
         const db = getDatabase(app);
         const USER_KEY = "wisprtc.username";
         const CLIENT_KEY = "wisprtc.clientId";
-        const STALE_MS = 720000;
+        const STALE_MS = 180000;
         const COLORS = ["#6d7cff","#3dd68c","#f5c542","#eb459e","#f23f42","#00a8fc","#f26522","#b57bff"];
         const EXTRA_TURN = [];
         const _dec = (a,b) => atob(a + b);
         const CF_TURN_KEY = () => _dec("NzYwZDE0Y2FiYmVhMjk1MD", "c2ZjhhZTkyMzgzZDY3MDE=");
         const CF_TURN_API = () => _dec("NTQ1NjE0NTIyMDQ0MWM0MGI0ZDMwNGFjZmI1MjQyMTA5", "MDJmZWUyZDFjMWY0NzY3NWZlMjhmMTg5YzYwMGNhOA==");
         let cfTurnLoaded = false;
-        async function loadCloudflareTurn() {
+        function loadCloudflareTurn() { return Promise.race([_loadCfTurn(), new Promise(r => setTimeout(r, 3500))]); }
+        async function _loadCfTurn() {
             if (cfTurnLoaded) return;
             try {
                 const res = await fetch(
@@ -886,81 +885,20 @@
         const RELAY_AUTH = { username: "openrelayproject", credential: "openrelayproject" };
         const iceConfig = {
             iceServers: [
-                { urls: [
-                    "stun:stun.l.google.com:19302",
-                    "stun:stun1.l.google.com:19302",
-                    "stun:stun2.l.google.com:19302",
-                    "stun:stun3.l.google.com:19302",
-                    "stun:stun4.l.google.com:19302",
-                    "stun:stun.cloudflare.com:3478",
-                    "stun:openrelay.metered.ca:80",
-                    "stun:stun.relay.metered.ca:80"
+                { urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302", "stun:stun.cloudflare.com:3478"] },
+                { ...RELAY_AUTH, urls: [
+                    "turns:openrelay.metered.ca:443?transport=tcp",
+                    "turn:openrelay.metered.ca:443?transport=tcp",
+                    "turn:openrelay.metered.ca:80"
                 ]},
-                {
-                    ...RELAY_AUTH,
-                    urls: [
-                        "turns:openrelay.metered.ca:443?transport=tcp",
-                        "turns:openrelay.metered.ca:443",
-                        "turn:openrelay.metered.ca:443?transport=tcp",
-                        "turn:openrelay.metered.ca:443",
-                        "turn:openrelay.metered.ca:80?transport=tcp",
-                        "turn:openrelay.metered.ca:80"
-                    ]
-                },
-                {
-                    ...RELAY_AUTH,
-                    urls: [
-                        "turns:staticauth.openrelay.metered.ca:443?transport=tcp",
-                        "turn:staticauth.openrelay.metered.ca:443?transport=tcp",
-                        "turn:staticauth.openrelay.metered.ca:80?transport=tcp",
-                        "turn:staticauth.openrelay.metered.ca:80"
-                    ]
-                },
-                {
-                    ...RELAY_AUTH,
-                    urls: [
-                        "turns:standard.relay.metered.ca:443?transport=tcp",
-                        "turn:standard.relay.metered.ca:443?transport=tcp",
-                        "turn:standard.relay.metered.ca:80?transport=tcp",
-                        "turn:standard.relay.metered.ca:80"
-                    ]
-                },
-                {
-                    ...RELAY_AUTH,
-                    urls: [
-                        "turns:global.relay.metered.ca:443?transport=tcp",
-                        "turn:global.relay.metered.ca:443?transport=tcp",
-                        "turn:global.relay.metered.ca:80?transport=tcp",
-                        "turn:global.relay.metered.ca:80"
-                    ]
-                },
-                {
-                    ...RELAY_AUTH,
-                    urls: [
-                        "turns:relay.metered.ca:443?transport=tcp",
-                        "turn:relay.metered.ca:443?transport=tcp",
-                        "turn:relay.metered.ca:80?transport=tcp",
-                        "turn:relay.metered.ca:80"
-                    ]
-                },
-                {
-                    ...RELAY_AUTH,
-                    urls: [
-                        "turns:us-east.relay.metered.ca:443?transport=tcp",
-                        "turn:us-east.relay.metered.ca:443?transport=tcp",
-                        "turn:us-east.relay.metered.ca:80?transport=tcp",
-                        "turns:na.relay.metered.ca:443?transport=tcp",
-                        "turn:na.relay.metered.ca:80?transport=tcp"
-                    ]
-                },
                 ...EXTRA_TURN
             ],
-            iceCandidatePoolSize: 4
+            iceCandidatePoolSize: 2
         };
         function onCellular() {
             const c = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
             if (c?.type === "cellular") return true;
-            if (c?.effectiveType && /2g|3g/.test(c.effectiveType) && c.type !== "wifi") return true;
+            if (/Android/i.test(navigator.userAgent) && !/CrOS/.test(navigator.userAgent) && c?.effectiveType && /2g|3g/.test(c.effectiveType) && c.type !== "wifi") return true;
             return false;
         }
         function iceForCall(forceRelay, info) {
@@ -969,7 +907,7 @@
                 // Always allow host/srflx so same-WiFi LAN still works.
                 // TURN stays in the list for when peers are on different networks.
                 iceTransportPolicy: forceRelay ? "relay" : "all",
-                iceCandidatePoolSize: 4
+                iceCandidatePoolSize: 2
             };
         }
         const videosEl = document.getElementById("videos");
@@ -1025,6 +963,9 @@
         let shareDrawSrc = null;
         let shareOutStream = null;
         let fxMode = "off";
+        let multiCam = true;
+        let wakeLock = null;
+        let entering = false;
         let fxLandmarker = null;
         let fxRaf = 0;
         let fxStream = null;
@@ -1265,6 +1206,11 @@
             for (const c of tries) {
                 try { return await navigator.mediaDevices.getUserMedia(c); }
                 catch (e) { last = e; }
+            }
+            if (!videoOnly) {
+                for (const c of [{ video: true, audio: false }, { video: false, audio }]) {
+                    try { return await navigator.mediaDevices.getUserMedia(c); } catch (_) {}
+                }
             }
             throw last;
         }
@@ -1529,7 +1475,7 @@
             ctx.drawImage(src, (cw - dw) / 2, (ch - dh) / 2, dw, dh);
         }
         function fxTick() {
-            if (!fxActive()) {
+            if (!fxActive() || fxMode === "off") {
                 stopFxLoop();
                 return;
             }
@@ -1571,6 +1517,7 @@
         }
         async function startFxPipeline() {
             if (!cameraStream) return;
+            if (fxMode === "off" || !cameraStream.getVideoTracks().length) { stopFxLoop(); return; }
             fxSrc.setAttribute("playsinline", "");
             fxSrc.muted = true;
             fxSrc.srcObject = cameraStream;
@@ -1599,7 +1546,7 @@
             if (sharing) return screenStream?.getVideoTracks?.()[0];
             // Canvas output is driven by requestAnimationFrame, which browsers pause in
             // background tabs (=> frozen video). Use it while visible, raw camera while hidden.
-            if (!document.hidden
+            if (!document.hidden && fxMode !== "off"
                 && fxStream?.getVideoTracks?.()[0]?.readyState === "live") {
                 return fxStream.getVideoTracks()[0];
             }
@@ -1663,6 +1610,7 @@
                 shareRotBarBtn.innerHTML = ICO_ROTATE;
             }
             flipBtn.innerHTML = ICO_FLIP;
+            flipBtn.style.display = multiCam ? "" : "none";
             fxBtn.innerHTML = ICO_FX;
             const chatKeep = chatDot;
             chatBtn.innerHTML = ICO_CHAT;
@@ -1889,6 +1837,7 @@
             el.title = label;
         }
         async function recoverPeers() {
+            checkCamera();
             // Paused while a network rejoin is in progress so the two don't fight.
             if (!roomId || !localStream || window.__netSettling) return;
             for (const [id, entry] of peers.entries()) {
@@ -1991,6 +1940,8 @@
             if (localStream && !sharing && live) return localStream;
             cameraStream = await getMedia();
             localStream = cameraStream;
+            if (!cameraStream.getVideoTracks().length) camOn = false;
+            if (!cameraStream.getAudioTracks().length) micOn = false;
             try {
                 if (fxMode !== "off") await loadFaceModel();
                 await startFxPipeline();
@@ -2282,12 +2233,12 @@
         }
         async function confirmCellular() {
             if (!onCellular()) return true;
-            if (sessionStorage.getItem("wisprtc.cellok") === "1") return true;
+            try { if (sessionStorage.getItem("wisprtc.cellok") === "1") return true; } catch (_) {}
             const box = document.getElementById("cellWarn");
             box.classList.add("on");
             return await new Promise(resolve => {
                 document.getElementById("cellOk").onclick = () => {
-                    sessionStorage.setItem("wisprtc.cellok", "1");
+                    try { sessionStorage.setItem("wisprtc.cellok", "1"); } catch (_) {}
                     box.classList.remove("on");
                     resolve(true);
                 };
@@ -2310,10 +2261,10 @@
                 const curCam = cameraStream?.getVideoTracks?.()[0]?.getSettings?.().deviceId;
                 const curMic = (cameraStream || localStream)?.getAudioTracks?.()[0]?.getSettings?.().deviceId;
                 camSelect.innerHTML = cams.map((d, i) =>
-                    `<option value="${d.deviceId}"${d.deviceId === curCam ? " selected" : ""}>${d.label || "Camera " + (i + 1)}</option>`
+                    `<option value="${esc(d.deviceId)}"${d.deviceId === curCam ? " selected" : ""}>${esc(d.label || "Camera " + (i + 1))}</option>`
                 ).join("") || "<option>No cameras found</option>";
                 micSelect.innerHTML = mics.map((d, i) =>
-                    `<option value="${d.deviceId}"${d.deviceId === curMic ? " selected" : ""}>${d.label || "Microphone " + (i + 1)}</option>`
+                    `<option value="${esc(d.deviceId)}"${d.deviceId === curMic ? " selected" : ""}>${esc(d.label || "Microphone " + (i + 1))}</option>`
                 ).join("") || "<option>No microphones found</option>";
             } catch (_) {}
         }
@@ -2400,7 +2351,7 @@
             setChatUnread(0);
             if (!roomId) return;
             let first = true;
-            chatUnsub = onChildAdded(ref(db, `rooms/${roomId}/chat`), (snap) => {
+            chatUnsub = onChildAdded(query(ref(db, `rooms/${roomId}/chat`), limitToLast(100)), (snap) => {
                 const msg = snap.val() || {};
                 addChatMessage(msg.name || "?", msg.text || "", msg.name === displayName);
                 if (!first && msg.name !== displayName) setChatUnread(unreadChat + 1);
@@ -2427,6 +2378,11 @@
         });
         document.getElementById("hangup").onclick = () => leaveRoom(true);
         async function enter() {
+            if (entering) return;
+            entering = true;
+            try { await _enter(); } finally { entering = false; }
+        }
+        async function _enter() {
             displayName = cleanUsername(nameInput.value);
             if (!displayName) {
                 nameInput.focus();
@@ -2448,8 +2404,55 @@
                 alert("Camera or mic blocked. On iPhone use HTTPS and allow Camera and Mic.");
                 return;
             }
-            await joinRoom(id);
+            await detectCams();
+            const occ = await roomCount(id);
+            if (occ >= MAX_PARTICIPANTS - 1) { alert("Room is full (max " + MAX_PARTICIPANTS + ")."); stopAllMedia(); return; }
+            try { await joinRoom(id); }
+            catch (err) { console.error(err); alert("Could not join the room. Check your connection."); await leaveRoom(true); }
         }
+        const MAX_PARTICIPANTS = 8; // full mesh: more than this overloads CPU/uplink
+        function esc(s) {
+            return String(s == null ? "" : s).replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+        }
+        async function roomCount(id) {
+            try {
+                const s = await get(ref(db, `rooms/${id}/participants`));
+                const now = Date.now(), stem = clientId() + "_";
+                let n = 0;
+                s.forEach(c => {
+                    const i = c.val() || {};
+                    const last = i.seenAt || i.joinedAt || 0;
+                    if (last && now - last < STALE_MS && !String(c.key).startsWith(stem)) n++;
+                });
+                return n;
+            } catch (_) { return 0; }
+        }
+        async function detectCams() {
+            try {
+                const d = await navigator.mediaDevices.enumerateDevices();
+                multiCam = d.filter(x => x.kind === "videoinput").length > 1;
+                paintBarIcons();
+            } catch (_) {}
+        }
+        try { navigator.mediaDevices?.addEventListener?.("devicechange", detectCams); } catch (_) {}
+        async function requestWake() {
+            try {
+                if (!navigator.wakeLock || wakeLock) return;
+                wakeLock = await navigator.wakeLock.request("screen");
+                wakeLock.addEventListener("release", () => { wakeLock = null; });
+            } catch (_) {}
+        }
+        function releaseWake() { try { wakeLock?.release(); } catch (_) {} wakeLock = null; }
+        async function checkCamera() {
+            if (!roomId || !camOn || sharing || mediaBusy || document.hidden) return;
+            const vt = cameraStream?.getVideoTracks?.()[0];
+            if (vt && vt.readyState === "ended") {
+                mediaBusy = true;
+                try { await restartCamera(); } catch (_) {} finally { mediaBusy = false; }
+            }
+        }
+        window.addEventListener("unhandledrejection", e => { console.warn("Unhandled:", e.reason); e.preventDefault(); });
+        window.addEventListener("error", e => console.warn("Error:", e.message));
         function setInCall(on) {
             document.body.classList.toggle("in-call", on);
         }
@@ -2480,6 +2483,7 @@
             myId = clientId() + "_" + Date.now().toString(36);
             callGen += 1;
             setInCall(true);
+            requestWake();
             roomChip.classList.add("on");
             roomLabel.textContent = roomId;
             log("In room " + roomId);
@@ -2549,6 +2553,7 @@
             
         }
         function onVisible() {
+            if (document.visibilityState === "visible") requestWake();
             if (!roomId || !myId) return;
             publishState(); // carries the hidden flag so peers don't mistake a paused tab for a dead link
             if (document.visibilityState !== "visible") {
@@ -2844,7 +2849,7 @@
                 }
             }
             const candRef = ref(db, signalPath(myId, remoteId, "candidates/" + myId, relayOnly));
-            pc.onicecandidate = (ev) => { if (ev.candidate) push(candRef, ev.candidate.toJSON()); };
+            pc.onicecandidate = (ev) => { if (ev.candidate) push(candRef, ev.candidate.toJSON()).catch(() => {}); };
             unsubscribers.push(onChildAdded(ref(db, signalPath(myId, remoteId, "candidates/" + remoteId, relayOnly)), (snap) => {
                 const val = snap.val();
                 if (!val) return;
@@ -2927,6 +2932,7 @@
             fxSrc.srcObject = null;
         }
         async function leaveRoom(showLobby) {
+            releaseWake();
             window.removeEventListener("pagehide", onPageHide);
             window.removeEventListener("beforeunload", onPageHide);
             window.removeEventListener("online", recoverPeers);
@@ -2965,7 +2971,7 @@
                 setInCall(false);
                 roomChip.classList.remove("on");
                 window.__netSettling = false;
-                await stopShare();
+                if (sharing) { sharing = false; stopShareDraw(); shareDrawSrc = null; clearSharePreviewStyles(); }
                 fxPanel.classList.remove("on");
                 stopAllMedia();
                 micOn = true;
