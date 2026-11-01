@@ -727,6 +727,117 @@
             }
             .fx-grid { grid-template-columns: repeat(3, 1fr); }
         }
+
+        /* ===== Tiles that exactly fit the camera (1-2 people + focus) ===== */
+        #videos.one > .tile.local,
+        #videos.count-2:not(.focus) > .tile.remote {
+            height: auto !important;
+            max-width: none !important;
+            width: min(92vw, calc((100dvh - var(--bar-space) - 72px) * var(--arn, .75))) !important;
+            aspect-ratio: var(--ar, 3 / 4);
+        }
+        #videos.focus > .tile.focused {
+            height: auto !important;
+            max-width: none !important;
+            width: min(calc(100vw - 160px), calc((100dvh - var(--bar-space) - 72px) * var(--arn, .75))) !important;
+        }
+        @media (orientation: portrait) and (max-width: 759px) {
+            #videos.focus > .tile.focused {
+                width: min(92vw, calc((100dvh - var(--bar-space) - 160px) * var(--arn, .75))) !important;
+                max-height: none !important;
+            }
+        }
+
+        /* ===== Clean grid for 3+ people ===== */
+        #videos:is(.count-3,.count-4,.count-5,.count-6,.count-7,.count-8,.count-9):not(.focus) {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            grid-auto-rows: minmax(0, 1fr);
+            align-content: stretch; align-items: stretch; justify-content: stretch;
+            gap: 8px;
+            padding: 8px 12px var(--bar-space);
+            overflow: hidden;
+        }
+        #videos:is(.count-3,.count-4,.count-5,.count-6,.count-7,.count-8,.count-9):not(.focus) > .tile {
+            position: relative !important; right: auto !important; bottom: auto !important;
+            width: 100% !important; height: 100% !important;
+            max-width: none !important; max-height: none !important;
+            aspect-ratio: auto !important;
+            box-shadow: none; border-radius: 14px;
+        }
+        #videos:is(.count-3,.count-4,.count-5,.count-6,.count-7,.count-8,.count-9):not(.focus) > .tile video { object-fit: cover; }
+        #videos:is(.count-3,.count-4,.count-5,.count-6,.count-7,.count-8,.count-9):not(.focus) > .tile.sharing video { object-fit: contain !important; }
+        /* 3 people: two on top, one centered below */
+        #videos.count-3:not(.focus) { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+        #videos.count-3:not(.focus) > .tile { grid-column: span 2; }
+        #videos.count-3:not(.focus) > .tile:last-child { grid-column: 2 / span 2; }
+        @media (min-width: 760px) and (orientation: landscape) {
+            #videos:is(.count-5,.count-6):not(.focus) { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+            #videos:is(.count-7,.count-8,.count-9):not(.focus) { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+        }
+        @media (orientation: landscape) and (max-height: 520px) {
+            #videos:is(.count-3,.count-4,.count-5,.count-6,.count-7,.count-8,.count-9):not(.focus) {
+                padding: 4px 76px 4px max(6px, env(safe-area-inset-left));
+                gap: 6px;
+            }
+            #videos.count-3:not(.focus) { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+            #videos.count-3:not(.focus) > .tile,
+            #videos.count-3:not(.focus) > .tile:last-child { grid-column: auto; }
+        }
+
+        /* PiP button state */
+        .bar #pipBtn.on { background: #32364a; border-color: rgba(255,92,114,.4); }
+
+        /* ===== Clean UI ===== */
+        @media (min-height: 521px) { :root { --bar-space: calc(92px + var(--safe-bottom)); } }
+        body.in-call .brand { display: none; }
+        body.in-call .topbar { position: absolute; top: 0; left: 0; right: 0; justify-content: center; height: 48px; pointer-events: none; }
+        body.in-call #stage { padding-top: 48px; }
+        body.in-call .live { pointer-events: auto; }
+        .live { background: rgba(18,20,28,.72); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 0; padding: 4px 4px 4px 12px; gap: 8px; }
+        .live .dot { display: none; }
+        #roomLabel { font-weight: 650; letter-spacing: .6px; color: var(--text); }
+        .copy, .gear { background: transparent; color: var(--muted); }
+        .gear { font-size: 15px; }
+        .tile { border: 0; border-radius: 20px; background: #10121a; }
+        .label { background: rgba(0,0,0,.45); font-size: 12px; font-weight: 600; padding: 5px 10px; }
+        .tile-btns button { background: rgba(0,0,0,.45); }
+        body.in-call .live, body.in-call .bar, body.in-call .tile-btns { transition: opacity .25s ease; }
+        body.in-call:not(.ui-on) .live, body.in-call:not(.ui-on) .bar, body.in-call:not(.ui-on) .tile-btns { opacity: 0; pointer-events: none; }
+        .bar { gap: 4px; padding: 6px; background: rgba(18,20,28,.8); border: 1px solid rgba(255,255,255,.06); box-shadow: 0 12px 40px rgba(0,0,0,.45); }
+        .bar button { width: 46px; height: 46px; border: 0; background: rgba(255,255,255,.08); }
+        .bar button svg { width: 20px; height: 20px; }
+        .bar #hangup { width: 52px; border-radius: 999px; }
+        @media (max-width: 430px) { .bar button { width: 42px; height: 42px; } .bar #hangup { width: 48px; } }
+        #morePanel {
+            display: none; position: fixed; left: 50%; bottom: calc(84px + var(--safe-bottom)); transform: translateX(-50%);
+            z-index: 9; background: rgba(22,24,31,.96); border: 1px solid var(--line);
+            backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+            border-radius: 18px; padding: 6px; min-width: 210px; flex-direction: column;
+        }
+        #morePanel.on { display: flex; }
+        #morePanel button {
+            display: flex; align-items: center; gap: 12px; width: 100%; height: 44px; padding: 0 12px;
+            border: 0; border-radius: 12px; background: transparent; color: #fff;
+            font: 600 14px var(--font-ui); text-align: left;
+        }
+        #morePanel button svg { width: 20px; height: 20px; flex: none; }
+        #morePanel button::after { content: attr(aria-label); }
+        #morePanel button:active { background: rgba(255,255,255,.08); }
+        #morePanel button.on { color: var(--accent); }
+        #lobby { background: transparent; border: 0; box-shadow: none; padding: 8px 4px; }
+        #lobby h2 { font-size: 32px; margin-bottom: 10px; }
+        #lobby p, #lobby > div[style], .user-row { display: none; }
+        #lobby label { font-size: 12px; margin: 14px 0 6px; }
+        #lobby input { background: rgba(255,255,255,.05); border-color: transparent; border-radius: 14px; }
+        .actions button { border-radius: 14px; }
+        @media (orientation: landscape) and (max-height: 520px) {
+            body.in-call #stage { padding-top: 34px; }
+            body.in-call .topbar { height: 34px; }
+            #morePanel { left: auto; bottom: auto; top: 50%; right: calc(64px + env(safe-area-inset-right, 0px)); transform: translateY(-50%); }
+            .bar button { width: 40px; height: 40px; }
+            .bar #hangup { width: 40px; }
+        }
     </style>
 </head>
 <body>
@@ -765,7 +876,7 @@
     </div>
     <div id="lobbyWrap">
         <div id="lobby">
-            <h2>Hop into a room</h2>
+            <h2>Join a room</h2>
             <p>Your username is saved on this device. Share a room code with anyone, even on another WiFi.</p>
             <label for="nameInput">Username</label>
             <input id="nameInput" type="text" placeholder="cooluser" maxlength="20" autocomplete="username" autocapitalize="off">
@@ -799,13 +910,17 @@
     <div class="bar" id="callBar">
         <button id="muteBtn" type="button" title="Mute microphone" aria-label="Mute"></button>
         <button id="camBtn" type="button" title="Toggle camera" aria-label="Camera"></button>
-        <button id="flipBtn" type="button" title="Flip camera" aria-label="Flip camera"></button>
         <button id="shareBtn" type="button" title="Share screen" aria-label="Share screen"></button>
         <button id="shareRotBarBtn" type="button" title="Rotate shared screen" aria-label="Rotate share"></button>
-        <button id="fxBtn" type="button" title="Effects" aria-label="Effects"></button>
         <button id="chatBtn" type="button" style="position:relative;" title="Chat" aria-label="Chat"><span class="chat-dot" id="chatDot"></span></button>
-        <button id="fsBtn" type="button" title="Fullscreen" aria-label="Fullscreen"></button>
+        <button id="moreBtn" type="button" title="More" aria-label="More"></button>
         <button id="hangup" type="button" title="Leave" aria-label="Leave"></button>
+    </div>
+    <div id="morePanel">
+        <button id="flipBtn" type="button" title="Flip camera" aria-label="Flip camera"></button>
+        <button id="fxBtn" type="button" title="Effects" aria-label="Effects"></button>
+        <button id="pipBtn" type="button" title="Picture in picture" aria-label="Picture in picture"></button>
+        <button id="fsBtn" type="button" title="Fullscreen" aria-label="Fullscreen"></button>
     </div>
     <div id="chatPanel">
         <h3>Chat</h3>
@@ -901,6 +1016,10 @@
             if (/Android/i.test(navigator.userAgent) && !/CrOS/.test(navigator.userAgent) && c?.effectiveType && /2g|3g/.test(c.effectiveType) && c.type !== "wifi") return true;
             return false;
         }
+        function videoCap(n) {
+            if (onCellular()) return 180000;
+            return n <= 1 ? 900000 : n === 2 ? 600000 : n === 3 ? 400000 : n <= 5 ? 280000 : 200000;
+        }
         function iceForCall(forceRelay, info) {
             return {
                 iceServers: iceConfig.iceServers,
@@ -945,6 +1064,11 @@
         const chatDot = document.getElementById("chatDot");
         const fsBtn = document.getElementById("fsBtn");
         const hangup = document.getElementById("hangup");
+        const pipBtn = document.getElementById("pipBtn");
+        const moreBtn = document.getElementById("moreBtn");
+        const morePanel = document.getElementById("morePanel");
+        const ICO_MORE = `<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>`;
+        const ICO_PIP = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="14" rx="2"/><rect x="11.5" y="11" width="7" height="5" rx="1" fill="currentColor"/></svg>`;
         if (!window.isSecureContext) document.getElementById("httpsWarn").style.display = "block";
         let localStream = null;
         let cameraStream = null;
@@ -1048,6 +1172,7 @@
             const h = el?.videoHeight || 0;
             if (!tile || w < 8 || h < 8) return;
             tile.style.setProperty("--ar", w + " / " + h);
+            tile.style.setProperty("--arn", (w / h).toFixed(4));
         }
         async function playVideo(el) {
             try { await el.play(); } catch (_) {}
@@ -1616,6 +1741,9 @@
             chatBtn.innerHTML = ICO_CHAT;
             if (chatKeep) chatBtn.appendChild(chatKeep);
             fsBtn.innerHTML = ICO_FS;
+            pipBtn.innerHTML = ICO_PIP;
+            moreBtn.innerHTML = ICO_MORE;
+            pipBtn.style.display = pipSupported() ? "" : "none";
             hangup.innerHTML = ICO_LEAVE;
             flipBtn.disabled = sharing || !camOn;
             flipBtn.style.opacity = (sharing || !camOn) ? ".45" : "1";
@@ -1712,72 +1840,105 @@
                 });
             } catch (_) {}
         }
-        async function clearPeerSignals(remoteId) {
-            if (!roomId || !myId || !remoteId) return;
-            const [x, y] = myId < remoteId ? [myId, remoteId] : [remoteId, myId];
-            try { await remove(ref(db, `rooms/${roomId}/signals/${x}_${y}`)); } catch (_) {}
+        // ===== Peer core: "perfect negotiation" over a per-pair Firebase message channel =====
+        // Both sides can offer, glare resolves itself, ICE restarts automatically, and a stuck
+        // connection is rebuilt with a new epoch that both sides adopt (no stale offers/answers).
+        const epMem = new Map();
+        function sigRef(remoteId) {
+            const k = myId < remoteId ? myId + "_" + remoteId : remoteId + "_" + myId;
+            return ref(db, `rooms/${roomId}/sig/${k}`);
         }
-        function pairKey(remoteId) {
-            return myId < remoteId ? `${myId}_${remoteId}` : `${remoteId}_${myId}`;
-        }
-        function pairGenRef(remoteId) {
-            return ref(db, `rooms/${roomId}/signals/${pairKey(remoteId)}/gen`);
-        }
-        async function bumpPairGen(remoteId) {
-            if (!roomId || !myId) return null;
-            try {
-                const res = await runTransaction(pairGenRef(remoteId), cur => (cur || 0) + 1);
-                const g = res?.snapshot?.val();
-                if (g != null) pairGenSeen.set(remoteId, g);
-                return g;
-            } catch (_) { return null; }
-        }
-        function watchPairGen(remoteId, unsubscribers) {
-            if (!roomId) return;
-            unsubscribers.push(onValue(pairGenRef(remoteId), (snap) => {
-                const g = snap.val();
-                if (g == null) return;
-                const seen = pairGenSeen.get(remoteId);
-                if (seen === undefined) { pairGenSeen.set(remoteId, g); return; }
-                if (g !== seen) {
-                    pairGenSeen.set(remoteId, g);
-                    hardRebuildPeer(remoteId, false);
-                }
-            }));
-        }
-        async function rebuildPeer(remoteId, info = {}, useRelay = false) {
-            if (rebuildingIds.has(remoteId)) return;
-            rebuildingIds.add(remoteId);
-            setPeerWait(remoteId, true, "Reconnecting");
-            const entry = peers.get(remoteId);
-            if (entry) {
-                entry.unsubscribers.forEach(fn => { try { fn(); } catch (_) {} });
-                try { entry.pc.close(); } catch (_) {}
-                peers.delete(remoteId);
-            }
-            const useInfo = (info && Object.keys(info).length) ? info : (lastPeerInfo.get(remoteId) || {});
-            try {
-                await clearPeerSignals(remoteId);
-                await bumpPairGen(remoteId);
-            } finally {
-                rebuildingIds.delete(remoteId);
-            }
-            await ensurePeer(remoteId, myId < remoteId, useRelay, useInfo);
-        }
-        async function hardRebuildPeer(remoteId, useRelay = false) {
-            if (rebuildingIds.has(remoteId)) return;
+        function sendSig(remoteId, msg) {
             if (!roomId || !myId) return;
-            rebuildingIds.add(remoteId);
-            setPeerWait(remoteId, true, "Reconnecting");
-            const entry = peers.get(remoteId);
-            if (entry) {
-                entry.unsubscribers.forEach(fn => { try { fn(); } catch (_) {} });
-                try { entry.pc.close(); } catch (_) {}
-                peers.delete(remoteId);
+            push(sigRef(remoteId), { f: myId, ...msg }).catch(() => {});
+        }
+        function descOf(pc) { return { type: pc.localDescription.type, sdp: pc.localDescription.sdp }; }
+        function startPeer(remoteId, ep) {
+            const prev = peers.get(remoteId);
+            if (prev) {
+                prev.unsubscribers.forEach(fn => { try { fn(); } catch (_) {} });
+                const o = prev.pc;
+                o.onicecandidate = o.ontrack = o.onnegotiationneeded = o.onconnectionstatechange = o.oniceconnectionstatechange = null;
+                try { o.close(); } catch (_) {}
             }
-            rebuildingIds.delete(remoteId);
-            const useInfo = lastPeerInfo.get(remoteId) || {};
-            await ensurePeer(remoteId, myId < remoteId, useRelay, useInfo);
+            epMem.set(remoteId, ep);
+            const pc = new RTCPeerConnection(iceForCall(ep >= 2 && cfTurnLoaded));
+            const remoteStream = new MediaStream();
+            const entry = {
+                pc, ep, polite: myId < remoteId, remoteStream, unsubscribers: [], pending: [],
+                muted: prev ? prev.muted : false, makingOffer: false, ignoreOffer: false,
+                chain: Promise.resolve(), bad: 0, good: 0, stall: 0, lastBytes: 0, lastLost: 0, poor: false
+            };
+            peers.set(remoteId, entry);
+            const v0 = document.querySelector("#tile-" + remoteId + " video");
+            if (v0) { v0.srcObject = remoteStream; playVideo(v0); }
+            setPeerWait(remoteId, true, ep ? "Reconnecting" : "Connecting");
+            pc.onicecandidate = (ev) => {
+                if (ev.candidate) sendSig(remoteId, { ep, k: "c", d: JSON.parse(JSON.stringify(ev.candidate)) });
+            };
+            pc.onnegotiationneeded = async () => {
+                try {
+                    entry.makingOffer = true;
+                    await pc.setLocalDescription(await pc.createOffer());
+                    sendSig(remoteId, { ep, k: "d", d: descOf(pc) });
+                } catch (_) {} finally { entry.makingOffer = false; }
+            };
+            pc.ontrack = (ev) => {
+                const v = document.querySelector("#tile-" + remoteId + " video");
+                const tracks = ev.streams && ev.streams[0] ? ev.streams[0].getTracks() : [ev.track];
+                tracks.forEach(t => { if (t && !remoteStream.getTracks().some(x => x.id === t.id)) remoteStream.addTrack(t); });
+                if (ev.track) {
+                    ev.track.onunmute = () => { if (v) { v.srcObject = remoteStream; playVideo(v); } };
+                    ev.track.onended = () => { try { remoteStream.removeTrack(ev.track); } catch (_) {} };
+                }
+                if (entry.muted) remoteStream.getAudioTracks().forEach(t => t.enabled = false);
+                if (v) { v.srcObject = remoteStream; v.muted = false; playVideo(v); }
+                setPeerWait(remoteId, false);
+            };
+            pc.onconnectionstatechange = () => {
+                log((lastPeerInfo.get(remoteId)?.name || remoteId.slice(0, 6)) + ": " + pc.connectionState);
+                if (pc.connectionState === "connected") {
+                    entry.bad = 0;
+                    setPeerWait(remoteId, false);
+                    adaptBitrate(pc, entry.poor).catch(() => {});
+                }
+            };
+            pc.oniceconnectionstatechange = () => {
+                const s = pc.iceConnectionState;
+                if (s === "failed") { try { pc.restartIce(); } catch (_) {} }
+                else if (s === "connected" || s === "completed") setPeerWait(remoteId, false);
+            };
+            entry.unsubscribers.push(onChildAdded(sigRef(remoteId), (snap) => {
+                const m = snap.val();
+                if (!m || m.f === myId || peers.get(remoteId) !== entry) return;
+                entry.chain = entry.chain.then(() => handleSig(remoteId, entry, m)).catch(() => {});
+            }));
+            attachLocalTracks(pc);
+        }
+        async function handleSig(remoteId, entry, m) {
+            if (peers.get(remoteId) !== entry || m.ep < entry.ep) return;
+            if (m.ep > entry.ep) { startPeer(remoteId, m.ep); return; }  // the new listener replays this message
+            const pc = entry.pc;
+            try {
+                if (m.k === "d") {
+                    const d = m.d;
+                    const collision = d.type === "offer" && (entry.makingOffer || pc.signalingState !== "stable");
+                    entry.ignoreOffer = !entry.polite && collision;
+                    if (entry.ignoreOffer) return;
+                    if (d.type === "offer" && pc.signalingState !== "stable") {
+                        try { await pc.setLocalDescription({ type: "rollback" }); } catch (_) {}
+                    }
+                    await pc.setRemoteDescription(d);
+                    for (const c of entry.pending.splice(0)) { try { await pc.addIceCandidate(c); } catch (_) {} }
+                    if (d.type === "offer") {
+                        await pc.setLocalDescription(await pc.createAnswer());
+                        sendSig(remoteId, { ep: entry.ep, k: "d", d: descOf(pc) });
+                    }
+                } else if (m.k === "c") {
+                    if (!pc.remoteDescription) entry.pending.push(m.d);
+                    else { try { await pc.addIceCandidate(m.d); } catch (err) { if (!entry.ignoreOffer) throw err; } }
+                }
+            } catch (_) {}
         }
         function setPeerWait(id, on, text) {
             const tile = document.getElementById("tile-" + id);
@@ -1838,91 +1999,50 @@
         }
         async function recoverPeers() {
             checkCamera();
-            // Paused while a network rejoin is in progress so the two don't fight.
             if (!roomId || !localStream || window.__netSettling) return;
-            for (const [id, entry] of peers.entries()) {
-                const st = entry.pc?.connectionState;
-                const ice = entry.pc?.iceConnectionState;
-                if (st === "failed" || ice === "failed") {
-                    entry.bad = (entry.bad || 0) + 1;
-                    setPeerWait(id, true, "Reconnecting");
-                    if (entry.bad >= 2) {
-                        await rebuildPeer(id, {}, false);
-                    } else {
-                        try { await restartIceForPeer(id, entry); } catch (_) {}
+            for (const [id, e] of [...peers.entries()]) {
+                const pc = e.pc, st = pc.connectionState, ice = pc.iceConnectionState;
+                if (st === "closed") { startPeer(id, e.ep + 1); continue; }
+                const ok = st === "connected" && (ice === "connected" || ice === "completed");
+                if (!ok) {
+                    e.bad++;
+                    setPeerWait(id, true, e.ep || e.bad > 2 ? "Reconnecting" : "Connecting");
+                    if (e.bad === 2 && (st === "failed" || st === "disconnected" || ice === "failed" || ice === "disconnected")) {
+                        try { pc.restartIce(); } catch (_) {}
                     }
-                } else if (st === "disconnected" || ice === "disconnected") {
-                    entry.bad = (entry.bad || 0) + 1;
-                    setPeerWait(id, true, "Reconnecting");
-                    try { await restartIceForPeer(id, entry); } catch (_) {}
-                    if (entry.bad >= 6) {
-                        await rebuildPeer(id, {}, false);
-                    }
-                } else if (st === "closed") {
-                    await rebuildPeer(id, {}, false);
-                } else if (st === "connected" || st === "connecting") {
-                    if (document.getElementById("tile-" + id)?.classList.contains("cam-off")) {
-                        entry.bad = 0;
-                        setPeerWait(id, false);
-                        continue;
-                    }
-                    try {
-                        const stats = await entry.pc.getStats();
-                        let bytes = 0;
-                        let rtt = 0;
-                        let packetsLost = 0;
-                        stats.forEach(r => {
-                            if (r.type === "inbound-rtp" && (r.kind === "video" || r.mediaType === "video")) {
-                                bytes += r.bytesReceived || 0;
-                                packetsLost += r.packetsLost || 0;
-                            }
-                            if (r.type === "candidate-pair" && r.state === "succeeded" && r.currentRoundTripTime) {
-                                rtt = r.currentRoundTripTime;
-                            }
-                        });
-                        const peerHidden = lastPeerInfo.get(id)?.hidden === true;
-                        if (bytes === entry.lastBytes && bytes > 0 && !peerHidden) entry.stall = (entry.stall || 0) + 1;
-                        else entry.stall = 0;
-                        entry.lastBytes = bytes;
-                        if (rtt > 0.45 || packetsLost > (entry.lastLost || 0) + 40) {
-                            try { await adaptBitrate(entry.pc, true); } catch (_) {}
-                        }
-                        entry.lastLost = packetsLost;
-                        if (entry.stall >= 8) {
-                            setPeerWait(id, true, "Reconnecting");
-                            await restartIceForPeer(id, entry);
-                            entry.stall = 0;
-                            entry.bad = (entry.bad || 0) + 1;
-                            if (entry.bad >= 4) await rebuildPeer(id, {}, false);
-                        } else if (entry.stall === 0 && (st === "connected" || ice === "connected")) {
-                            entry.bad = 0;
-                            setPeerWait(id, false);
-                        }
-                    } catch (_) {}
+                    if (e.bad >= 6) { e.bad = 0; startPeer(id, e.ep + 1); }   // ~24s stuck: rebuild both sides
+                    continue;
                 }
+                e.bad = 0;
+                const tile = document.getElementById("tile-" + id);
+                const info = lastPeerInfo.get(id) || {};
+                if (tile?.classList.contains("cam-off") || info.sharing) { e.stall = 0; setPeerWait(id, false); continue; }
+                try {
+                    const stats = await pc.getStats();
+                    let bytes = 0, rtt = 0, lost = 0;
+                    stats.forEach(r => {
+                        if (r.type === "inbound-rtp" && (r.kind === "video" || r.mediaType === "video")) {
+                            bytes += r.bytesReceived || 0;
+                            lost += r.packetsLost || 0;
+                        }
+                        if (r.type === "candidate-pair" && r.state === "succeeded" && r.currentRoundTripTime) rtt = r.currentRoundTripTime;
+                    });
+                    e.stall = (bytes === e.lastBytes && info.hidden !== true) ? e.stall + 1 : 0;
+                    e.lastBytes = bytes;
+                    if (e.stall === 5) { try { pc.restartIce(); } catch (_) {} setPeerWait(id, true, "Reconnecting"); }
+                    else if (e.stall >= 10) { e.stall = 0; startPeer(id, e.ep + 1); continue; }
+                    else if (e.stall === 0) setPeerWait(id, false);
+                    const poorNow = rtt > 0.45 || lost > e.lastLost + 40;
+                    e.lastLost = lost;
+                    if (poorNow) { e.good = 0; if (!e.poor) { e.poor = true; adaptBitrate(pc, true).catch(() => {}); } }
+                    else if (e.poor && ++e.good >= 4) { e.poor = false; adaptBitrate(pc, false).catch(() => {}); }
+                } catch (_) {}
             }
             updateSignalBars();
         }
-        async function restartIceForPeer(remoteId, entry) {
-            const pc = entry?.pc;
-            if (!pc || !roomId) return;
-            try { pc.setConfiguration(iceForCall(false, lastPeerInfo.get(remoteId))); } catch (_) {}
-            // Only the offerer can send restart offers on this signaling layout.
-            // The answerer relies on the rebuild fallback instead.
-            if (myId > remoteId) return;
-            try { pc.restartIce(); } catch (_) {}
-            if (pc.signalingState !== "stable") return;
-            try {
-                const offer = await pc.createOffer({ iceRestart: true, offerToReceiveAudio: true, offerToReceiveVideo: true });
-                await pc.setLocalDescription(offer);
-                await set(ref(db, signalPath(myId, remoteId, "offer", !!entry.relayOnly)), {
-                    type: offer.type, sdp: offer.sdp, restart: true, t: Date.now()
-                });
-            } catch (_) {}
-        }
         async function adaptBitrate(pc, poor) {
             const n = Math.max(1, peers.size);
-            const cap = poor ? 120000 : (onCellular() ? 180000 : (n >= 8 ? 250000 : 700000));
+            const cap = poor ? 120000 : videoCap(n);
             for (const s of pc.getSenders()) {
                 if (s.track?.kind !== "video") continue;
                 try {
@@ -2368,6 +2488,52 @@
         document.addEventListener("fullscreenchange", () => {
             fsBtn.classList.toggle("on", !!document.fullscreenElement);
         });
+
+        // ---- Picture-in-Picture (Chrome OS / desktop Chrome / Edge / Safari / iOS) ----
+        function pipSupported() {
+            return !!(document.pictureInPictureEnabled || HTMLVideoElement.prototype.webkitSetPresentationMode);
+        }
+        function pipVideo() {
+            const tiles = [];
+            if (focusedTileId) tiles.push(document.getElementById(focusedTileId));
+            tiles.push(...videosEl.querySelectorAll(".tile.remote"), localTile);
+            for (const t of tiles) {
+                const v = t?.querySelector("video");
+                if (v && v.srcObject && v.videoWidth > 0 && !t.classList.contains("cam-off")) return v;
+            }
+            return null;
+        }
+        function activePipVideo() {
+            if (document.pictureInPictureElement) return document.pictureInPictureElement;
+            return [...document.querySelectorAll("#videos video")]
+                .find(v => v.webkitPresentationMode === "picture-in-picture") || null;
+        }
+        async function enterPip() {
+            if (activePipVideo()) return true;
+            const v = pipVideo();
+            if (!v) { log("No video to pop out"); return false; }
+            try {
+                if (v.requestPictureInPicture && document.pictureInPictureEnabled && !v.disablePictureInPicture) {
+                    await v.requestPictureInPicture();               // Chrome OS, Chrome, Edge, macOS Safari
+                } else if (v.webkitSetPresentationMode) {
+                    v.webkitSetPresentationMode("picture-in-picture"); // iOS / iPadOS Safari
+                } else return false;
+                return true;
+            } catch (e) { log("Picture-in-picture failed"); return false; }
+        }
+        async function exitPip() {
+            try {
+                if (document.pictureInPictureElement) await document.exitPictureInPicture();
+                else activePipVideo()?.webkitSetPresentationMode?.("inline");
+            } catch (_) {}
+        }
+        function syncPipBtn() { pipBtn.classList.toggle("on", !!activePipVideo()); }
+        pipBtn.onclick = () => (activePipVideo() ? exitPip() : enterPip());
+        ["enterpictureinpicture", "leavepictureinpicture", "webkitpresentationmodechanged"]
+            .forEach(evt => document.addEventListener(evt, syncPipBtn, true));
+        // Chrome / Chrome OS: auto-PiP when you switch tabs or apps during a call
+        try { navigator.mediaSession?.setActionHandler("enterpictureinpicture", () => { enterPip(); }); } catch (_) {}
+
         document.addEventListener("keydown", (e) => {
             if (!document.body.classList.contains("in-call")) return;
             const tag = document.activeElement?.tagName;
@@ -2376,6 +2542,25 @@
             else if (e.key === "v" || e.key === "V") camBtn.click();
             else if (e.key === "f" || e.key === "F") fsBtn.click();
         });
+        // ---- Clean UI: "more" menu + controls that fade away when idle ----
+        moreBtn.onclick = (e) => { e.stopPropagation(); morePanel.classList.toggle("on"); fxPanel.classList.remove("on"); };
+        morePanel.addEventListener("click", (e) => { if (e.target.closest("button")) setTimeout(() => morePanel.classList.remove("on"), 0); });
+        document.addEventListener("click", (e) => {
+            if (morePanel.classList.contains("on") && !morePanel.contains(e.target) && !moreBtn.contains(e.target)) morePanel.classList.remove("on");
+        });
+        let uiTimer = 0;
+        function pokeUI() {
+            document.body.classList.add("ui-on");
+            clearTimeout(uiTimer);
+            uiTimer = setTimeout(() => {
+                const busy = chatOpen || morePanel.classList.contains("on") || fxPanel.classList.contains("on")
+                    || settingsPanel.classList.contains("on") || document.activeElement === chatInput;
+                if (busy) return pokeUI();
+                document.body.classList.remove("ui-on");
+            }, 4500);
+        }
+        ["pointerdown", "pointermove", "touchstart", "keydown"].forEach(evt =>
+            document.addEventListener(evt, pokeUI, { passive: true }));
         document.getElementById("hangup").onclick = () => leaveRoom(true);
         async function enter() {
             if (entering) return;
@@ -2455,6 +2640,7 @@
         window.addEventListener("error", e => console.warn("Error:", e.message));
         function setInCall(on) {
             document.body.classList.toggle("in-call", on);
+            if (on) pokeUI();
         }
         async function deleteRoomIfEmpty(id) {
             if (!id) return;
@@ -2517,7 +2703,6 @@
                     const n = (t.querySelector("[data-name]")?.textContent || "").replace(/ muted$/, "");
                     if (info.name && n === info.name) teardownPeer(id);
                 });
-                teardownPeer(remoteId);
                 await ensurePeer(remoteId, myId < remoteId, false, info);
             });
             removedUnsub = onChildRemoved(partsRef, async (snap) => {
@@ -2616,23 +2801,28 @@
             }
         }
         window.addEventListener("offline", () => { netDown = true; if (roomId) window.__netSettling = true; });
-        window.addEventListener("online", scheduleNetRejoin);
-        if (navigator.connection) {
-            navigator.connection.addEventListener("change", scheduleNetRejoin);
-        }
+        window.addEventListener("online", () => {
+            netDown = false; window.__netSettling = false;
+            publishState();
+            for (const e of peers.values()) { try { e.pc.restartIce(); } catch (_) {} }
+            setTimeout(recoverPeers, 1500);
+        });
+        let lastConnType = navigator.connection?.type;
+        navigator.connection?.addEventListener("change", () => {
+            const t = navigator.connection.type;
+            if (t === lastConnType) return;   // speed/RTT wobble: ignore
+            lastConnType = t;                 // real switch (wifi <-> cellular): restart ICE, don't drop the room
+            for (const entry of peers.values()) { try { entry.pc.restartIce(); } catch (_) {} }
+        });
         try {
             onValue(ref(db, ".info/connected"), snap => {
                 if (!snap.val() || !roomId || !myId) return;
-                if (netDown) { scheduleNetRejoin(); return; }
+                netDown = false; window.__netSettling = false;
                 try { onDisconnect(ref(db, `rooms/${roomId}/participants/${myId}`)).remove(); } catch (_) {}
                 publishState();
             });
         } catch (_) {}
 
-        function signalPath(a, b, leaf, relayOnly = false) {
-            const [x, y] = a < b ? [a, b] : [b, a];
-            return `rooms/${roomId}/signals/${x}_${y}/p2p/${leaf}`;
-        }
         function updateRemoteChrome(remoteId, info) {
             const tile = document.getElementById("tile-" + remoteId);
             if (!tile) return;
@@ -2678,51 +2868,22 @@
                     const n = Math.max(1, peers.size);
                     const params = s.getParameters();
                     params.encodings = params.encodings?.length ? params.encodings : [{}];
-                    params.encodings[0].maxBitrate = onCellular() ? 180000 : (n >= 8 ? 250000 : 700000);
+                    params.encodings[0].maxBitrate = videoCap(n);
                     params.encodings[0].scaleResolutionDownBy = 1;
                     await s.setParameters(params);
                 } catch (_) {}
             });
         }
-        async function ensurePeer(remoteId, iAmOfferer, relayOnly = false, info = {}) {
-            if (!roomId) return;
-            if (rebuildingIds.has(remoteId)) return;
-            const existing = peers.get(remoteId);
-            if (existing) {
-                const st = existing.pc.connectionState;
-                if (st === "connected") {
-                    attachLocalTracks(existing.pc);
-                    return;
-                }
-                if (st === "connecting" || st === "new") {
-                    attachLocalTracks(existing.pc);
-                    return;
-                }
-                try { existing.pc.close(); } catch (_) {}
-                existing.unsubscribers.forEach(fn => { try { fn(); } catch (_) {} });
-                peers.delete(remoteId);
-            }
-            if (!localStream && !cameraStream) return;
-            const cfg = iceForCall(relayOnly, info);
-            const pc = new RTCPeerConnection(cfg);
-            const unsubscribers = [];
-            const remoteStream = new MediaStream();
-            peers.set(remoteId, { pc, unsubscribers, remoteStream, muted: false, relayOnly, lastBytes: 0, lastStats: 0 });
-            if (info && Object.keys(info).length) lastPeerInfo.set(remoteId, info);
-            watchPairGen(remoteId, unsubscribers);
-            attachLocalTracks(pc);
-            let tile = document.getElementById("tile-" + remoteId);
-            let v = tile?.querySelector("video");
-            if (!tile) {
-            tile = document.createElement("div");
+        function buildTile(remoteId, info) {
+            if (document.getElementById("tile-" + remoteId)) { updateRemoteChrome(remoteId, info); return; }
+            const tile = document.createElement("div");
             tile.className = "tile remote front-cam";
             tile.id = "tile-" + remoteId;
-            v = document.createElement("video");
+            const v = document.createElement("video");
             v.autoplay = true;
             v.playsInline = true;
             v.setAttribute("playsinline", "");
             v.setAttribute("webkit-playsinline", "");
-            v.srcObject = remoteStream;
             v.addEventListener("loadedmetadata", () => { playVideo(v); layout(); });
             v.addEventListener("canplay", () => playVideo(v));
             v.addEventListener("playing", () => { playVideo(v); setPeerWait(remoteId, false); });
@@ -2780,120 +2941,15 @@
             bindTileFocus(tile);
             videosEl.appendChild(tile);
             layout();
-            }
-            v.srcObject = remoteStream;
-            playVideo(v);
             updateRemoteChrome(remoteId, info);
-            pc.ontrack = (ev) => {
-                const incoming = ev.streams && ev.streams[0];
-                const tracks = incoming ? incoming.getTracks() : (ev.track ? [ev.track] : []);
-                tracks.forEach(t => {
-                    if (!remoteStream.getTracks().some(x => x.id === t.id)) remoteStream.addTrack(t);
-                });
-                if (ev.track && !remoteStream.getTracks().some(x => x.id === ev.track.id)) {
-                    remoteStream.addTrack(ev.track);
-                }
-                if (ev.track) {
-                    ev.track.onunmute = () => {
-                        v.srcObject = remoteStream;
-                        playVideo(v);
-                    };
-                    ev.track.onended = () => {
-                        try { remoteStream.removeTrack(ev.track); } catch (_) {}
-                    };
-                }
-                const p = peers.get(remoteId);
-                if (p?.muted) remoteStream.getAudioTracks().forEach(t => t.enabled = false);
-                v.srcObject = remoteStream;
-                v.muted = false;
-                setPeerWait(remoteId, false);
-                playVideo(v);
-            };
-            pc.onconnectionstatechange = () => {
-                log((info.name || remoteId.slice(0, 6)) + ": " + pc.connectionState);
-                if (pc.connectionState === "connected") setPeerWait(remoteId, false);
-                if (pc.connectionState === "failed" || pc.connectionState === "disconnected") {
-                    setPeerWait(remoteId, true, "Reconnecting");
-                    const entry = peers.get(remoteId);
-                    restartIceForPeer(remoteId, entry || { pc, relayOnly }).catch(() => {});
-                    const delay = pc.connectionState === "failed" ? 6000 : 12000;
-                    setTimeout(() => {
-                        const cur = peers.get(remoteId);
-                        if (!cur || cur.pc !== pc) return;
-                        if (pc.connectionState === "connected" || pc.iceConnectionState === "connected") return;
-                        if (window.__netSettling) return;
-                        rebuildPeer(remoteId, info, false);
-                    }, delay);
-                }
-            };
-            pc.oniceconnectionstatechange = () => {
-                if (pc.iceConnectionState === "connected" || pc.iceConnectionState === "completed") {
-                    setPeerWait(remoteId, false);
-                }
-            };
-            if (!relayOnly) {
-                const wait = onCellular() ? 10000 : 16000;
-                setTimeout(async () => {
-                    const entry = peers.get(remoteId);
-                    if (!entry || entry.pc !== pc) return;
-                    if (pc.connectionState === "connected" || pc.iceConnectionState === "connected" || pc.iceConnectionState === "completed") return;
-                    if (remoteStream.getTracks().length) return;
-                    await rebuildPeer(remoteId, info, true);
-                }, wait);
-            }
-            const pendingCandidates = [];
-            async function flushPendingCandidates() {
-                while (pendingCandidates.length) {
-                    const c = pendingCandidates.shift();
-                    try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch (_) {}
-                }
-            }
-            const candRef = ref(db, signalPath(myId, remoteId, "candidates/" + myId, relayOnly));
-            pc.onicecandidate = (ev) => { if (ev.candidate) push(candRef, ev.candidate.toJSON()).catch(() => {}); };
-            unsubscribers.push(onChildAdded(ref(db, signalPath(myId, remoteId, "candidates/" + remoteId, relayOnly)), (snap) => {
-                const val = snap.val();
-                if (!val) return;
-                if (pc.remoteDescription) {
-                    pc.addIceCandidate(new RTCIceCandidate(val)).catch(() => {});
-                } else {
-                    pendingCandidates.push(val);
-                }
-            }));
-            const offerRef = ref(db, signalPath(myId, remoteId, "offer", relayOnly));
-            const answerRef = ref(db, signalPath(myId, remoteId, "answer", relayOnly));
-            if (iAmOfferer) {
-                const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
-                await pc.setLocalDescription(offer);
-                await set(offerRef, { type: offer.type, sdp: offer.sdp, t: Date.now() });
-                unsubscribers.push(onValue(answerRef, async (snap) => {
-                    const data = snap.val();
-                    if (!data || !data.sdp) return;
-                    try {
-                        if (pc.signalingState === "have-local-offer" || !pc.currentRemoteDescription) {
-                            await pc.setRemoteDescription(new RTCSessionDescription({ type: data.type, sdp: data.sdp }));
-                            await flushPendingCandidates();
-                        }
-                    } catch (_) {}
-                }));
-            } else {
-                let lastOfferSdp = "";
-                unsubscribers.push(onValue(offerRef, async (snap) => {
-                    const data = snap.val();
-                    if (!data || !data.sdp) return;
-                    if (data.sdp === lastOfferSdp) return;
-                    lastOfferSdp = data.sdp;
-                    try {
-                        if (pc.signalingState === "have-local-offer") {
-                            try { await pc.setLocalDescription({ type: "rollback" }); } catch (_) {}
-                        }
-                        await pc.setRemoteDescription(new RTCSessionDescription({ type: data.type, sdp: data.sdp }));
-                        await flushPendingCandidates();
-                        const answer = await pc.createAnswer();
-                        await pc.setLocalDescription(answer);
-                        await set(answerRef, { type: answer.type, sdp: answer.sdp, t: Date.now() });
-                    } catch (_) {}
-                }));
-            }
+        }
+        async function ensurePeer(remoteId, _offerer, _relay, info = {}) {
+            if (!roomId || !myId) return;
+            if (peers.has(remoteId)) return;
+            if (!localStream && !cameraStream) return;
+            if (info && Object.keys(info).length) lastPeerInfo.set(remoteId, info);
+            buildTile(remoteId, info || {});
+            startPeer(remoteId, epMem.get(remoteId) || 0);
         }
         function teardownPeer(remoteId) {
             const entry = peers.get(remoteId);
@@ -2901,6 +2957,7 @@
                 entry.unsubscribers.forEach(fn => { try { fn(); } catch (_) {} });
                 try { entry.pc.close(); } catch (_) {}
                 peers.delete(remoteId);
+                epMem.set(remoteId, (entry.ep || 0) + 1);
             }
             lastPeerInfo.delete(remoteId);
             pairGenSeen.delete(remoteId);
@@ -2932,6 +2989,7 @@
             fxSrc.srcObject = null;
         }
         async function leaveRoom(showLobby) {
+            exitPip();
             releaseWake();
             window.removeEventListener("pagehide", onPageHide);
             window.removeEventListener("beforeunload", onPageHide);
@@ -2953,6 +3011,7 @@
             lastPeerInfo.clear();
             pairGenSeen.clear();
             rebuildingIds.clear();
+            epMem.clear();
             document.querySelectorAll("#videos .tile.remote").forEach(t => t.remove());
             focusedTileId = null;
             videosEl.classList.remove("focus");
